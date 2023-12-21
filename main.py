@@ -2,6 +2,25 @@ import re
 import error
 import invariant
 import sys
+import argparse
+from tqdm import tqdm
+
+STAR_REPLACE = "STARTOKEN"
+ARROW_REPLACE = "ARROWTOKEN"
+DOT_REPLACE = "DOTTOKEN"
+
+parser = argparse.ArgumentParser(description='Daikon-like invariant generator')
+parser.add_argument('decl_file', metavar='decl_file', type=str, help='decl file')
+parser.add_argument('pass_trace_file', metavar='pass_trace_file', type=str, help='pass trace file')
+parser.add_argument('fail_trace_file', metavar='fail_trace_file', type=str, help='fail trace file')
+parser.add_argument('--verbose', dest='verbose', action='store_true', help='verbose mode')
+parser.set_defaults(verbose=False)
+args = parser.parse_args()
+
+
+def printv(m):
+    if args.verbose:
+        print(m)
 
 # 일단 decl들에서 변수 목록 뽑고
 def parse_decl(decl_file):
@@ -12,7 +31,7 @@ def parse_decl(decl_file):
     var = {}
     for l in declstr:
         if l.strip().startswith("variable"):
-            var["name"] = l.split()[1]
+            var["name"] = l.split()[1].replace("*", STAR_REPLACE).replace("->", ARROW_REPLACE).replace(".", DOT_REPLACE)
         elif l.strip().startswith("dec-type"):
             if var["name"] == "":
                 raise error.ParseException("parse_decl", "Type before variable name")
@@ -39,91 +58,62 @@ def parse_traces(trace_file, decls):
         traces.append(trace)
     return traces
 
-# 그리고 템플릿으로 모든 invariant 만들고
-# x < y
-# x == y
-# var == int_const
-# var != int_const
-# var >= int_const
-# var <= int_const
-# x % y == 0
-# x - y >= a
-# x < c
+# var == const
 # var != 0
-# ax + by = c
-# ax + by < c
-# ax + by > c
-def generate_invariants(decls, pass_traces, fail_traces):
-    invarients = []
-    invarients += invariant.infer_IntGreaterThan(decls, pass_traces, fail_traces)
-    invarients += invariant.infer_IntEqual(decls, pass_traces, fail_traces)
-    invarients += invariant.infer_OneOfScalar(decls, pass_traces, fail_traces)
-    invarients += invariant.infer_IntDivide(decls, pass_traces, fail_traces)
-    invarients += invariant.infer_IntNonEqual(decls, pass_traces, fail_traces)
-    invarients += invariant.infer_NonZero(decls, pass_traces, fail_traces)
-    invarients += invariant.infer_LowerBound(decls, pass_traces, fail_traces, interest=10)
-    invarients += invariant.infer_UpperBound(decls, pass_traces, fail_traces, interest=10)
-    invarients += invariant.infer_IntDiffLowerBound(decls, pass_traces, fail_traces, interest=10)
-    invarients += invariant.infer_IntLimitUpperBound(decls, pass_traces, fail_traces)
-    # invarients += invariant.infer_LinearBinaryEqual(decls, pass_traces, fail_traces, interest=3)
-    # invarients += invariant.infer_LinearBinaryUpperBound(decls, pass_traces, fail_traces, interest_mult=3, interest_const=3)
-    # invarients += invariant.infer_LinearBinaryLowerBound(decls, pass_traces, fail_traces, interest_mult=3, interest_const=3)
-    return invarients
+# var >= const
+# var > var
+# var - var >= const
+# (var * var * (var + const) < const) 
 
-def is_IntDiffLowerBound(expr):
-    pattern = r'^\s*([\w-]+)\s*-\s*([\w-]+)\s*>=\s*(-?\d+)\s*$'
-    match = re.match(pattern, expr)
-    if match:
-        x, y, a = match.groups()
-        return x, y, int(a)
-    else:
-        return None, None, None
+def generate_invariants(decls):
+    invariants = []
+    printv("Generating OneOfScalar")
+    invariants += invariant.generate_OneOfScalar(decls)
+    printv("Generating NonZero")
+    invariants += invariant.generate_NonZero(decls)
+    printv("Generating LowerBound")
+    invariants += invariant.generate_LowerBound(decls)
+    printv("Generating IntGreaterThan")
+    invariants += invariant.generate_IntGreaterThan(decls)
+    printv("Generating IntDiffLowerBound")
+    invariants += invariant.generate_IntDiffLowerBound(decls)
+    # printv("Generating TripleMultUpperBound")
+    # invariants += invariant.generate_TripleMultUpperBound(decls)
 
-def is_IntGreaterThan(expr):
-    pattern = r'^\s*([\w-]+)\s*<\s*([\w-]+)\s*$'
-    match = re.match(pattern, expr)
-    if match:
-        x, y = match.groups()
-        return x, y
-    return None, None
-
-def sanitize_invariants(invariants):
-    for invariant in invariants:
-        x, y, a = is_IntDiffLowerBound(invariant)
-        x2, y2 = is_IntGreaterThan(invariant)
-        if x is not None: # 1 * x + -1 * y > a-1 / -1 * x + 1 * y < -a+1 / x - y >= a 
-            duplicate_invariant1 = '1 * '+x+' + -1 * '+y+' > '+str(a-1)
-            duplicate_invariant2 = '-1 * '+x+' + 1 * '+y+' < '+str(-a+1)
-            if duplicate_invariant1 in invariants:
-                invariants.remove(duplicate_invariant1)
-            if duplicate_invariant2 in invariants:
-                invariants.remove(duplicate_invariant2)
-        elif ' >= 1' in invariant: # var != 0  / var >= 1
-            duplicate_invariant = invariant.replace(' >= 1', ' != 0')
-            if duplicate_invariant in invariants:
-                invariants.remove(duplicate_invariant)
-        elif x2 is not None: # x < y / -1 * x + 1 * y > 0 / 1 * x + -1 * y < 0
-            duplicate_invariant1 = '-1 * '+x2+' + 1 * '+y2+' > 0'
-            duplicate_invariant2 = '1 * '+x2+' + -1 * '+y2+' < 0'
-            if duplicate_invariant1 in invariants:
-                invariants.remove(duplicate_invariant1)
-            if duplicate_invariant2 in invariants:
-                invariants.remove(duplicate_invariant2)
-        else:
-            pass
     return invariants
 
-# decls = parse_decl("./test/daikon.decls")
-# pass_traces = parse_traces("./test/pass.dtrace", decls)
-# fail_traces = parse_traces("./test/fail.dtrace", decls)
-# invariants = list(set(generate_invariants(decls, pass_traces, fail_traces)))
-# print(len(invariants))
-# print(sanitize_invariants(invariants))
+def prepare_eval(invariant, trace):
+    ptrace = {k.replace("*", STAR_REPLACE).replace("->", ARROW_REPLACE).replace(".", DOT_REPLACE): int(v) for k, v in trace.items()}
+    return ptrace
 
-decls = parse_decl(sys.argv[1])
-pass_traces = parse_traces(sys.argv[2], decls)
-fail_traces = parse_traces(sys.argv[3], decls)
-invariants = list(set(generate_invariants(decls, pass_traces, fail_traces)))
-print("\n".join(sanitize_invariants(invariants)))
-print(len(sanitize_invariants(invariants)))
+def validate_invariants(pass_traces, fail_traces, invariants):
+    def validate_invariant(invariant, traces, is_pass=True):
+        for trace in traces:
+            ptrace = prepare_eval(invariant, trace)
+            if eval(invariant, ptrace) != is_pass:
+                return False
+        return True
+    
+    printv("Validating pass traces")
+    looper = invariants
+    if args.verbose:
+        looper = tqdm(invariants)
+    passed_invariants = [inv for inv in looper if validate_invariant(inv,pass_traces)]
+    printv("Validating fail traces")
+    looper = passed_invariants
+    if args.verbose:
+        looper = tqdm(passed_invariants)
+    result = [inv for inv in looper if validate_invariant(inv,fail_traces, False)]
+    result = [res.replace(STAR_REPLACE, "*").replace(ARROW_REPLACE, "->").replace(DOT_REPLACE, ".") for res in result]
+    return result
 
+
+decls = parse_decl(args.decl_file)
+pass_traces = parse_traces(args.pass_trace_file, decls)
+fail_traces = parse_traces(args.fail_trace_file, decls)
+invariants = list(set(generate_invariants(decls)))
+print("Hypothesis Space :",len(invariants))
+printv("Validate invariants")
+validated = validate_invariants(pass_traces, fail_traces, invariants)
+printv(validated)
+print("\n".join(validated))
