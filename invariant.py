@@ -7,13 +7,13 @@ def generate_OneOfScalar(decls, lower_bound=-10, upper_bound=100, specials=globa
         if x["type"] != "int":
             continue # Only int
         for i in list(set(list(range(lower_bound, upper_bound)) + specials)):
-            invariants.append(x["name"] + " == " + str(i))
+            invariants.append("v['" + x["name"] + "']" + " == " + str(i))
     return invariants
 # var != 0
 def generate_NonZero(decls):
     invariants = []
     for x in decls:
-        invariants.append(x["name"] + " != 0")
+        invariants.append("v['" + x["name"] + "']" + " != 0")
     return invariants
 
 # var >= const
@@ -23,7 +23,7 @@ def generate_LowerBound(decls, lower_bound=-10, upper_bound=10, specials=global_
         if x["type"] != "int":
             continue # Only int
         for i in list(set(list(range(lower_bound, upper_bound)) + specials)):
-            invariants.append(x["name"] + " >= " + str(i))
+            invariants.append("v['" + x["name"] + "']" + " >= " + str(i))
     return invariants
 
 # var > var
@@ -35,7 +35,7 @@ def generate_IntGreaterThan(decls):
                 continue
             if x["name"] == y["name"]:
                 continue
-            invariants.append(x["name"] + " > " + y["name"])
+            invariants.append("v['" + x["name"] + "']" + " > " + "v['" +  y["name"] + "']")
     return invariants
 
 # var - var >= const
@@ -48,7 +48,7 @@ def generate_IntDiffLowerBound(decls, lower_bound=1, upper_bound=10, specials=gl
             if x["name"] == y["name"]:
                 continue
             for i in list(set(list(range(lower_bound, upper_bound)) + specials)):
-                invariants.append(x["name"] + " - " + y["name"] + " >= " + str(i))
+                invariants.append("v['" + x["name"] + "']" + " - " + "v['" + y["name"] + "']" + " >= " + str(i))
     return invariants
 
 # (var * var * (var + const1) < const2) 

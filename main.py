@@ -31,7 +31,8 @@ def parse_decl(decl_file):
     var = {}
     for l in declstr:
         if l.strip().startswith("variable"):
-            var["name"] = l.split()[1].replace("*", STAR_REPLACE).replace("->", ARROW_REPLACE).replace(".", DOT_REPLACE)
+            var["name"] = l.split()[1]
+            # var["name"] = l.split()[1].replace("*", STAR_REPLACE).replace("->", ARROW_REPLACE).replace(".", DOT_REPLACE)
         elif l.strip().startswith("dec-type"):
             if var["name"] == "":
                 raise error.ParseException("parse_decl", "Type before variable name")
@@ -52,7 +53,7 @@ def parse_traces(trace_file, decls):
         splittrace = tracestr.split("\n")
         splittrace = list(zip(*[iter(splittrace)]*3))
         for v in splittrace:
-            trace[v[0]] = v[1]
+            trace[v[0]] = int(v[1])
         if len(trace.keys()) != len(decls):
             raise error.ParseException("parse_traces", "Trace and decls do not match")
         traces.append(trace)
@@ -86,11 +87,12 @@ def prepare_eval(invariant, trace):
     ptrace = {k.replace("*", STAR_REPLACE).replace("->", ARROW_REPLACE).replace(".", DOT_REPLACE): int(v) for k, v in trace.items()}
     return ptrace
 
+
 def validate_invariants(pass_traces, fail_traces, invariants):
     def validate_invariant(invariant, traces, is_pass=True):
+        eval_as_func = eval('lambda v: ' + invariant)
         for trace in traces:
-            ptrace = prepare_eval(invariant, trace)
-            if eval(invariant, ptrace) != is_pass:
+            if eval_as_func(trace) != is_pass:
                 return False
         return True
     
@@ -104,7 +106,7 @@ def validate_invariants(pass_traces, fail_traces, invariants):
     if args.verbose:
         looper = tqdm(passed_invariants)
     result = [inv for inv in looper if validate_invariant(inv,fail_traces, False)]
-    result = [res.replace(STAR_REPLACE, "*").replace(ARROW_REPLACE, "->").replace(DOT_REPLACE, ".") for res in result]
+    result = [res.replace("v[", "").replace("]", "") for res in result]
     return result
 
 
