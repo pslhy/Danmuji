@@ -51,6 +51,21 @@ def generate_IntDiffLowerBound(decls, lower_bound=1, upper_bound=10, specials=gl
                 invariants.append("v['" + x["name"] + "']" + " - " + "v['" + y["name"] + "']" + " >= " + str(i))
     return invariants
 
+# var <= var / const
+def generate_IntDivUpperBound(decls, lower_bound=2, upper_bound=10):
+    invariants = []
+    for x in decls:
+        if x["type"] != "int":
+            continue # Only int
+        for y in decls:
+            if y["type"] != x["type"]:
+                continue
+            if x["name"] == y["name"]:
+                continue
+            for i in range(lower_bound, upper_bound):
+                invariants.append("v['" + x["name"] + "']" + " <= " + "v['" + y["name"] + "']" + " / " + str(i))
+    return invariants
+
 # (var * var * (var + const1) < const2) 
 def generate_TripleMultUpperBound(decls, lower_bound=1, upper_bound=10, specials=global_specials):
     invariants = []

@@ -78,6 +78,8 @@ def generate_invariants(decls):
     invariants += invariant.generate_IntGreaterThan(decls)
     printv("Generating IntDiffLowerBound")
     invariants += invariant.generate_IntDiffLowerBound(decls)
+    printv("Generating IntDivUpperBound")
+    invariants += invariant.generate_IntDivUpperBound(decls)
     # printv("Generating TripleMultUpperBound")
     # invariants += invariant.generate_TripleMultUpperBound(decls)
 
