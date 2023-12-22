@@ -63,7 +63,7 @@ def generate_IntDivUpperBound(decls, lower_bound=2, upper_bound=10):
             if x["name"] == y["name"]:
                 continue
             for i in range(lower_bound, upper_bound):
-                invariants.append("v['" + x["name"] + "']" + " <= " + "v['" + y["name"] + "']" + " / " + str(i))
+                invariants.append("v['" + x["name"] + "']" + " <= " + "v['" + y["name"] + "']" + " // " + str(i))
     return invariants
 
 # (var * var * (var + const1) < const2) 

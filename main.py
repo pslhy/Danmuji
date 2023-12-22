@@ -108,7 +108,7 @@ def validate_invariants(pass_traces, fail_traces, invariants):
     if args.verbose:
         looper = tqdm(passed_invariants)
     result = [inv for inv in looper if validate_invariant(inv,fail_traces, False)]
-    result = [res.replace("v[", "").replace("]", "") for res in result]
+    result = [res.replace("v[", "").replace("]", "").replace("//", "/") for res in result]
     return result
 
 
