@@ -1,0 +1,14 @@
+(executable
+ (public_name danmuji)
+ (libraries batteries integers)
+ (name danmuji)
+ (promote
+  (until-clean)
+  (into ../))
+)
+
+(env
+ (dev
+  (flags (:standard -warn-error -A))
+ )
+)
