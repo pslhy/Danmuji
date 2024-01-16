@@ -26,7 +26,7 @@ let args : string -> unit = fun f ->
     let _ = debug "Decl file:\n" in
     ()
   else
-    let _ = debug "Error: Invalid arguments\n" in
+    let _ = error "Error: Invalid arguments\n" in
     exit 1
 
 
@@ -61,19 +61,22 @@ let () =
   let decls = Utils.parse_decls !decl_file in
   let _ =  debug "# of Decls : %d\n" (BatMap.cardinal decls) in
   let pass_trace = Utils.parse_traces !pass_trace_file decls in
-  let traces_to_str = BatList.fold_lefti (fun acc idx x -> acc ^ (string_of_int idx) ^ "th trace\n" ^ (Utils.string_of_trace x) ^ "\n") "" in
   debug "# of Pass trace : %d\n" (List.length pass_trace);
   let fail_trace = Utils.parse_traces !fail_trace_file decls in
   debug "# of Fail trace : %d\n" (List.length fail_trace);
   let _ = debug "Start to generate invariants\n" in
   let invariants = Invariants.generate_invariants decls in
-  debug "# of invariants : %d\n" (List.length invariants);
+  let _ = debug "# of invariants : %d\n" (List.length invariants) in
+  let _ = print_endline (Printf.sprintf "Hypothesis Space : %d" (List.length invariants)) in
   let _ = debug "Start to check pass traces\n" in
   let pass_result = Invariants.validate invariants pass_trace true in
   let _ = debug "# of passing invariants : %d\n" (List.length pass_result) in
   let _ = debug "Start to check fail traces\n" in
   let fail_result = Invariants.validate pass_result fail_trace false in
   debug "# of failing invariants : %d\n" (List.length fail_result);
-  let _ = debug "============ FINAL INVARIANTS ============\n" in
-  debug "%s\n" (List.fold_left (fun s inv -> s ^ "\n" ^ (Invariants.string_of_invariant inv) ) "" fail_result);
+  if !Options.verbose then
+    let _ = debug "============ FINAL INVARIANTS ============\n" in
+    let _ = List.iter (fun inv -> debug "%s\n" (Invariants.string_of_invariant inv)) fail_result in ()
+  else 
+    let _ = List.iter (fun inv -> print_endline (Printf.sprintf "%s" (Invariants.string_of_invariant inv))) fail_result in ()
 

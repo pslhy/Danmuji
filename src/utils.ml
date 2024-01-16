@@ -28,9 +28,9 @@ let time_of_string _ =
     tm_mday=day_of_month;
     tm_mon=month; 
     tm_year=year;
-    tm_wday=wday; 
-    tm_yday=yday; 
-    tm_isdst=isdst
+    tm_wday=_; 
+    tm_yday=_; 
+    tm_isdst=_
   } = Unix.localtime time in
   Printf.sprintf "%04d-%02d-%02d %02d:%02d:%02d" (year + 1900) (month + 1) day_of_month hours minutes seconds
     
@@ -42,10 +42,15 @@ let debug fmt =
       (* flush stdout ;  *)
       flush !debug_out;
   end in
-   if !Options.verbose then Printf.kprintf k fmt else Printf.kprintf (fun s -> ()) fmt
+   if !Options.verbose then Printf.kprintf k fmt else Printf.kprintf (fun _ -> ()) fmt
 
 let error fmt =
-  prerr_endline ("[" ^ (time_of_string ()) ^ "] " ^ (Printf.sprintf fmt))
+  let k result = begin
+    output_string !debug_out ("[" ^ (time_of_string ()) ^ "] " ^ result) ; 
+    (* output_string stdout result ;  *)
+    (* flush stdout ;  *)
+    flush !debug_out;
+end in Printf.kprintf k fmt
 
 let parse_decls f = 
   let lines = BatFile.lines_of f in 
